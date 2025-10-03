@@ -7,11 +7,11 @@ const FILES_TO_CACHE = [
   "index.html",
   "style.css",
   "app.js",
-  "/favicon/site.webmanifest",
-  "/favicon/apple-touch-icon.png",
-  "/favicon/favicon-32x32.png",
-  "/favicon/favicon-16x16.png",
-  "/favicon/android-chrome-512x512.png", 
+  "/favicon_io/site.webmanifest",
+  "/favicon_io/apple-touch-icon.png",
+  "/favicon_io/favicon-32x32.png",
+  "/favicon_io/favicon-16x16.png",
+  "/favicon_io/android-chrome-512x512.png", 
 ];
 
 // When the service worker is installed, open the cache and add the core files
