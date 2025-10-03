@@ -1,7 +1,4 @@
-// Define a name for our cache
-const CACHE_NAME = "kairon-v1";
-
-// List the files we want to cache
+const CACHE_NAME = "kairon-v2"; // Updated version to force a refresh
 const FILES_TO_CACHE = [
   "/",
   "index.html",
@@ -12,10 +9,10 @@ const FILES_TO_CACHE = [
   "/favicon_io/favicon-32x32.png",
   "/favicon_io/favicon-16x16.png",
   "/favicon_io/android-chrome-512x512.png",
-  "/favicon_io/android-chrome-192x192.png",
+  "/favicon_io/android-chrome-192x192.png", 
 ];
 
-// When the service worker is installed, open the cache and add the core files
+// On install, cache the app shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -25,12 +22,16 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// When the app makes a request (e.g., for a file), serve it from the cache if possible
+// On fetch, serve from cache if it's a request for our app files
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // If the file is in the cache, serve it. Otherwise, fetch it from the network.
-      return response || fetch(event.request);
-    })
-  );
+  // Only apply caching for requests on the same origin (our app)
+  if (event.request.url.startsWith(self.location.origin)) {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        // If the file is in the cache, serve it. Otherwise, fetch it.
+        return response || fetch(event.request);
+      })
+    );
+  }
+  // For all other requests (like to api.quotable.io), do nothing and let the browser handle it normally.
 });
