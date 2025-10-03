@@ -108,3 +108,27 @@ body.dark button:not(.bg-gradient-to-r):hover {
 body.dark .interest-item {
     background: #334155;
 }
+
+/* --- NEW STYLES --- */
+.subtask-completed span {
+    text-decoration: line-through;
+    color: #6b7280;
+    /* text-gray-500 */
+}
+
+.sortable-ghost {
+    background: #eef2ff;
+    /* indigo-100 */
+    opacity: 0.6;
+    border: 1px dashed #4f46e5;
+}
+
+.sortable-drag {
+    cursor: grabbing;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    transform: scale(1.02);
+}
+
+.task-draggable {
+    cursor: grab;
+}
