@@ -609,30 +609,35 @@ window.deleteTask = async function (taskId) {
     if (form) form.classList.remove("hidden");
     document.getElementById("interestTitleInput").focus();
   };
-  window.addInterest = function () {
-    const titleInput = document.getElementById("interestTitleInput");
-    const descInput = document.getElementById("interestDescInput");
-    const title = titleInput.value.trim();
-    const description = descInput.value.trim();
+window.addInterest = async function () {
+  const titleInput = document.getElementById("interestTitleInput");
+  const descInput = document.getElementById("interestDescInput");
+  const title = titleInput.value.trim();
+  const description = descInput.value.trim();
 
-    if (title) {
-      interests.push({ title, description, id: Date.now() });
-      saveData();
-      renderInterests();
-      cancelInterest();
-    }
-  };
+  if (title) {
+    const newInterest = { title, description };
+    // Add the new interest to the database.
+    const newId = await db.interests.add(newInterest);
+    newInterest.id = newId;
+    interests.push(newInterest);
+
+    renderInterests();
+    cancelInterest();
+  }
+};
   window.cancelInterest = function () {
     const form = document.getElementById("interestForm");
     if (form) form.classList.add("hidden");
     document.getElementById("interestTitleInput").value = "";
     document.getElementById("interestDescInput").value = "";
   };
-  window.deleteInterest = function (id) {
-    interests = interests.filter((i) => i.id !== id);
-    saveData();
-    renderInterests();
-  };
+window.deleteInterest = async function (id) {
+  interests = interests.filter((i) => i.id !== id);
+  // Delete the interest from the database.
+  await db.interests.delete(id);
+  renderInterests();
+};
 
   // ---- FILTERS ---- //
   window.syncFilters = function () {
@@ -1277,19 +1282,26 @@ window.deleteTask = async function (taskId) {
     updateThemeColor(settings.themeColor);
   }
 
-  window.saveSettings = function (event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    settings.location = formData.get("location");
-    settings.defaultView = formData.get("defaultView");
-    settings.notifications = formData.get("notifications");
-    settings.themeColor = formData.get("themeColor");
-    settings.darkIntensity = parseInt(formData.get("darkIntensity"));
-    saveData();
-    updateThemeColor(settings.themeColor);
-    getWeather();
-    showNotification("Success", "Settings saved!");
+window.saveSettings = async function (event) {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const newSettings = {
+    location: formData.get("location"),
+    defaultView: formData.get("defaultView"),
+    notifications: formData.get("notifications"),
+    themeColor: formData.get("themeColor"),
+    darkIntensity: parseInt(formData.get("darkIntensity")),
   };
+
+  settings = { ...settings, ...newSettings };
+
+  // Save the settings object to the database with a fixed key.
+  await db.settings.put({ key: "userSettings", value: settings });
+
+  updateThemeColor(settings.themeColor);
+  getWeather();
+  showNotification("Success", "Settings saved!");
+};
 
   window.handleReminderChange = function (selectElement) {
     const reminderValue = selectElement.value;
