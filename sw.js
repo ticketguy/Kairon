@@ -35,3 +35,17 @@ self.addEventListener("fetch", (event) => {
   }
   // For all other requests (like to api.quotable.io), do nothing and let the browser handle it normally.
 });
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "show-reminder") {
+    const { title, body, icon } = event.data;
+
+    // This is the function that shows the notification
+    event.waitUntil(
+      self.registration.showNotification(title, {
+        body: body,
+        icon: icon,
+      })
+    );
+  }
+});
