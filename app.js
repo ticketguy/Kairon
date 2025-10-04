@@ -420,11 +420,94 @@ document.addEventListener("DOMContentLoaded", () => {
     if (form) form.classList.add("hidden");
   };
 
-  window.handleAddTask = function (event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const task = {
-      id: Date.now(),
+function scheduleReminder(task, formData) {
+  const reminderMinutes = parseInt(formData.get("reminder"));
+
+  if (reminderMinutes && reminderMinutes > 0) {
+    const dueDateTime = new Date(task.dueDateTime).getTime();
+    const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
+    const now = new Date().getTime();
+
+    if (reminderTime > now) {
+      requestNotificationPermission()
+        .then(() => {
+          setTimeout(() => {
+            // 1. Play sound
+            const audio = new Audio("/notification.mp3");
+            audio.play();
+
+            // 2. Show in-app notification
+            showNotification(
+              "Task Reminder",
+              `Your task "${task.title}" is due soon.`
+            );
+
+            // 3. Trigger system notification
+            // We use the service worker method which is more reliable
+            if (navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: "show-reminder",
+                title: "Kairon Reminder",
+                body: `Your task "${task.title}" is due soon.`,
+                icon: "/favicon/android-chrome-192x192.png",
+              });
+            }
+          }, reminderTime - now);
+
+          console.log(`Notification scheduled for task: ${task.title}`);
+        })
+        .catch(() => {
+          console.log("Notification permission denied.");
+        });
+    }
+  }
+}
+
+window.handleAddTask = function (event) {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const task = {
+    id: Date.now(),
+    title: formData.get("title"),
+    category: formData.get("category"),
+    priority: formData.get("priority"),
+    dueDateTime: formData.get("dueDateTime"),
+    recurrence: formData.get("recurrence"),
+    tags: formData.get("tags")
+      ? formData
+          .get("tags")
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t)
+      : [],
+    notes: formData.get("notes"),
+    subtasks: [...currentSubtasks],
+    status: "active",
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+  };
+  tasks.push(task);
+  saveData();
+  renderTasks();
+  updateFilters();
+  closeTaskForm();
+  event.target.reset();
+  showNotification("Success", `"${task.title}" has been added!`);
+
+  // Schedule the reminder using the new function
+  scheduleReminder(task, formData);
+};
+
+window.handleUpdateTask = function (event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  const taskId = parseInt(formData.get("taskId"));
+  const taskIndex = tasks.findIndex((t) => t.id === taskId);
+
+  if (taskIndex > -1) {
+    tasks[taskIndex] = {
+      ...tasks[taskIndex],
       title: formData.get("title"),
       category: formData.get("category"),
       priority: formData.get("priority"),
@@ -439,58 +522,18 @@ document.addEventListener("DOMContentLoaded", () => {
         : [],
       notes: formData.get("notes"),
       subtasks: [...currentSubtasks],
-      status: "active",
-      createdAt: new Date().toISOString(),
-      completedAt: null,
     };
-    tasks.push(task);
-    saveData();
-    renderTasks();
-    updateFilters();
-    closeTaskForm();
-    event.target.reset();
-    showNotification("Success", `"${task.title}" has been added!`);
+  }
 
-    // --- ADD THIS NOTIFICATION LOGIC ---
-    const reminderMinutes = parseInt(formData.get("reminder"));
+  saveData();
+  renderTasks();
+  closeEditModal();
+  showNotification("Success", `"${tasks[taskIndex].title}" has been updated.`);
 
-    if (reminderMinutes && reminderMinutes > 0) {
-      const dueDateTime = new Date(task.dueDateTime).getTime();
-      const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
-      const now = new Date().getTime();
-
-      // Only schedule reminders for the future
-      if (reminderTime > now) {
-        // First, ask for permission
-        requestNotificationPermission()
-          .then(() => {
-            // If permission is granted, schedule the notification
-            const timeoutId = setTimeout(() => {
-              const audio = new Audio("/notification.mp3"); // Path to your sound file
-              audio.play();
-
-              // The SYSTEM notification
-              new Notification("Kairon Reminder", {
-                body: `Your task "${task.title}" is due soon.`,
-                icon: "/favicon/android-chrome-192x192.png", // Use one of your icons
-              });
-              // The IN-APP notification
-              showNotification(
-                "Task Reminder",
-                `Your task "${updatedTask.title}" is due soon.`
-              );
-            }, reminderTime - now);
-
-            // Optional: You could save the timeoutId with the task to be able to cancel it later
-            console.log(`Notification scheduled for task: ${task.title}`);
-          })
-          .catch(() => {
-            console.log("Notification permission denied.");
-          });
-      }
-    }
-    // --- END OF NOTIFICATION LOGIC ---
-  };
+  // Schedule the reminder using the new function
+  const updatedTask = tasks[taskIndex];
+  scheduleReminder(updatedTask, formData);
+};
 
   window.completeTask = function (taskId) {
     const task = tasks.find((t) => t.id === taskId);
@@ -534,79 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.classList.remove("hidden");
   };
 
-  window.handleUpdateTask = function (event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const taskId = parseInt(formData.get("taskId"));
-    const taskIndex = tasks.findIndex((t) => t.id === taskId);
-
-    if (taskIndex > -1) {
-      tasks[taskIndex] = {
-        ...tasks[taskIndex],
-        title: formData.get("title"),
-        category: formData.get("category"),
-        priority: formData.get("priority"),
-        dueDateTime: formData.get("dueDateTime"),
-        recurrence: formData.get("recurrence"),
-        tags: formData.get("tags")
-          ? formData
-              .get("tags")
-              .split(",")
-              .map((t) => t.trim())
-              .filter((t) => t)
-          : [],
-        notes: formData.get("notes"),
-        subtasks: [...currentSubtasks],
-      };
-    }
-
-    saveData();
-    renderTasks();
-    closeEditModal();
-    showNotification(
-      "Success",
-      `"${tasks[taskIndex].title}" has been updated.`
-    );
-
-    // --- START OF NOTIFICATION LOGIC ---
-
-    // First, get the task that was just updated
-    const updatedTask = tasks[taskIndex];
-    const reminderMinutes = parseInt(formData.get("reminder"));
-
-    if (reminderMinutes && reminderMinutes > 0) {
-      // Use updatedTask here
-      const dueDateTime = new Date(updatedTask.dueDateTime).getTime();
-      const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
-      const now = new Date().getTime();
-
-      // Only schedule reminders for the future
-      if (reminderTime > now) {
-        // First, ask for permission
-        requestNotificationPermission()
-          .then(() => {
-            // If permission is granted, schedule the notification
-            const timeoutId = setTimeout(() => {
-              new Notification("Kairon Reminder", {
-                // And use updatedTask here
-                body: `Your task "${updatedTask.title}" is due soon.`,
-                icon: "/favicon/android-chrome-192x192.png",
-              });
-            }, reminderTime - now);
-
-            // Optional: You could save the timeoutId with the task to be able to cancel it later
-            console.log(
-              `Notification scheduled for task: ${updatedTask.title}`
-            );
-          })
-          .catch(() => {
-            console.log("Notification permission denied.");
-          });
-      }
-    }
-    // --- END OF NOTIFICATION LOGIC ---
-  };
 
   window.closeEditModal = () => {
     document.getElementById("editTaskModal").classList.add("hidden");
