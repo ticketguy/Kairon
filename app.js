@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   // ---- STATE MANAGEMENT ---- //
   const STORAGE_KEY = "kairon_tasks";
   const SETTINGS_KEY = "kairon_settings";
@@ -82,27 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
       applyDarkMode(darkModes[settings.darkIntensity]);
     }
     updateThemeColor(settings.themeColor);
-
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-
-    // Register the Service Worker
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((registration) => {
-            console.log(
-              "ServiceWorker registration successful with scope: ",
-              registration.scope
-            );
-          })
-          .catch((err) => {
-            console.log("ServiceWorker registration failed: ", err);
-          });
-      });
-    }
   }
 
   // ---- DATA PERSISTENCE ---- //
@@ -471,6 +450,46 @@ document.addEventListener('DOMContentLoaded', () => {
     closeTaskForm();
     event.target.reset();
     showNotification("Success", `"${task.title}" has been added!`);
+
+    // --- ADD THIS NOTIFICATION LOGIC ---
+    const reminderMinutes = parseInt(formData.get("reminder"));
+
+    if (reminderMinutes && reminderMinutes > 0) {
+      const dueDateTime = new Date(task.dueDateTime).getTime();
+      const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
+      const now = new Date().getTime();
+
+      // Only schedule reminders for the future
+      if (reminderTime > now) {
+        // First, ask for permission
+        requestNotificationPermission()
+          .then(() => {
+            // If permission is granted, schedule the notification
+            const timeoutId = setTimeout(() => {
+              const audio = new Audio("/notification.mp3"); // Path to your sound file
+              audio.play();
+
+              // The SYSTEM notification
+              new Notification("Kairon Reminder", {
+                body: `Your task "${task.title}" is due soon.`,
+                icon: "/favicon/android-chrome-192x192.png", // Use one of your icons
+              });
+              // The IN-APP notification
+              showNotification(
+                "Task Reminder",
+                `Your task "${updatedTask.title}" is due soon.`
+              );
+            }, reminderTime - now);
+
+            // Optional: You could save the timeoutId with the task to be able to cancel it later
+            console.log(`Notification scheduled for task: ${task.title}`);
+          })
+          .catch(() => {
+            console.log("Notification permission denied.");
+          });
+      }
+    }
+    // --- END OF NOTIFICATION LOGIC ---
   };
 
   window.completeTask = function (taskId) {
@@ -549,6 +568,44 @@ document.addEventListener('DOMContentLoaded', () => {
       "Success",
       `"${tasks[taskIndex].title}" has been updated.`
     );
+
+    // --- START OF NOTIFICATION LOGIC ---
+
+    // First, get the task that was just updated
+    const updatedTask = tasks[taskIndex];
+    const reminderMinutes = parseInt(formData.get("reminder"));
+
+    if (reminderMinutes && reminderMinutes > 0) {
+      // Use updatedTask here
+      const dueDateTime = new Date(updatedTask.dueDateTime).getTime();
+      const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
+      const now = new Date().getTime();
+
+      // Only schedule reminders for the future
+      if (reminderTime > now) {
+        // First, ask for permission
+        requestNotificationPermission()
+          .then(() => {
+            // If permission is granted, schedule the notification
+            const timeoutId = setTimeout(() => {
+              new Notification("Kairon Reminder", {
+                // And use updatedTask here
+                body: `Your task "${updatedTask.title}" is due soon.`,
+                icon: "/favicon/android-chrome-192x192.png",
+              });
+            }, reminderTime - now);
+
+            // Optional: You could save the timeoutId with the task to be able to cancel it later
+            console.log(
+              `Notification scheduled for task: ${updatedTask.title}`
+            );
+          })
+          .catch(() => {
+            console.log("Notification permission denied.");
+          });
+      }
+    }
+    // --- END OF NOTIFICATION LOGIC ---
   };
 
   window.closeEditModal = () => {
@@ -803,7 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function getWeather() {
     if (!settings.location) return;
-    const API_KEY = "8b0f23f305fb73cd36caa7bad774e61c";
+    const API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"; // Replace with your OpenWeatherMap API key
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?q=${settings.location}&appid=${API_KEY}&units=metric`
@@ -872,6 +929,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div><label class="block text-sm font-medium mb-1">Priority</label><select name="priority" class="w-full px-4 py-2 border rounded-lg"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
                     <div><label class="block text-sm font-medium mb-1">Due Date & Time *</label><input type="datetime-local" name="dueDateTime" required class="w-full px-4 py-2 border rounded-lg"></div>
                     <div><label class="block text-sm font-medium mb-1">Recurrence</label><select name="recurrence" class="w-full px-4 py-2 border rounded-lg"><option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                        <div>
+        <label class="block text-sm font-medium mb-1">Reminder</label>
+        <select name="reminder" class="w-full px-4 py-2 border rounded-lg" onchange="handleReminderChange(this)">
+            <option value="none">None</option>
+            <option value="5">5 minutes before</option>
+            <option value="15">15 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+        </select>
+    </div>
                     <div class="md:col-span-2"><label class="block text-sm font-medium mb-1">Tags (comma-separated)</label><input type="text" name="tags" placeholder="#urgent, #project-alpha" class="w-full px-4 py-2 border rounded-lg"></div>
                     <div class="md:col-span-2"><label class="block text-sm font-medium mb-1">Notes</label><textarea name="notes" rows="2" class="w-full px-4 py-2 border rounded-lg"></textarea></div>
                 </div>
@@ -1234,8 +1301,47 @@ document.addEventListener('DOMContentLoaded', () => {
     showNotification("Success", "Settings saved!");
   };
 
+  window.handleReminderChange = function (selectElement) {
+    const reminderValue = selectElement.value;
+
+    // If the user selected a reminder (not 'none') and permission hasn't been granted yet
+    if (reminderValue !== "none" && Notification.permission === "default") {
+      console.log("User wants a reminder, asking for permission...");
+      requestNotificationPermission()
+        .then(() => {
+          console.log("Permission granted!");
+          showNotification("Success", "Notifications are now enabled.");
+        })
+        .catch(() => {
+          console.log("Permission was denied.");
+        });
+    }
+  };
+  function requestNotificationPermission() {
+    return new Promise((resolve, reject) => {
+      if (!("Notification" in window)) {
+        alert("This browser does not support desktop notification");
+        return reject();
+      }
+
+      if (Notification.permission === "granted") {
+        return resolve();
+      }
+
+      if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            resolve();
+          } else {
+            reject();
+          }
+        });
+      } else {
+        reject();
+      }
+    });
+  }
+
   // ---- KICK OFF THE APP ---- //
   init();
-
-
 });
