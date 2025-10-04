@@ -129,6 +129,16 @@
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                         </select></div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Reminder</label>
+                            <select name="reminder" class="w-full px-4 py-2 border rounded-lg" onchange="handleReminderChange(this)">
+                                <option value="none">None</option>
+                                <option value="5">5 minutes before</option>
+                                <option value="15">15 minutes before</option>
+                                <option value="30">30 minutes before</option>
+                                <option value="60">1 hour before</option>
+                            </select>
+                        </div>
                     <div class="md:col-span-2"><label class="block text-sm font-medium mb-1">Tags
                             (comma-separated)</label><input type="text" name="tags"
                             placeholder="#urgent, #project-alpha" class="w-full px-4 py-2 border rounded-lg"></div>
