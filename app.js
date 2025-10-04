@@ -860,7 +860,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function getWeather() {
     if (!settings.location) return;
-    const API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"; // Replace with your OpenWeatherMap API key
+    const API_KEY = "8b0f23f305fb73cd36caa7bad774e61c";
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?q=${settings.location}&appid=${API_KEY}&units=metric`
