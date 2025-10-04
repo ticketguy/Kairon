@@ -1,4 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // --- DEXIE DATABASE SETUP ---
+  const db = new Dexie("KaironDB");
+  db.version(1).stores({
+    tasks: "++id, status, category, priority, dueDateTime", // ++id is the auto-incrementing primary key
+    interests: "++id",
+    settings: "key", // A simple key-value store for settings
+  });
+
   // ---- STATE MANAGEMENT ---- //
   const STORAGE_KEY = "kairon_tasks";
   const SETTINGS_KEY = "kairon_settings";
@@ -67,8 +75,8 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   // ---- INITIALIZATION ---- //
-  function init() {
-    loadData();
+async function init() {
+    await loadData(); 
     setupEventListeners();
     renderAppLayout();
     showPage(settings.defaultView);
@@ -85,32 +93,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---- DATA PERSISTENCE ---- //
-  function loadData() {
-    const storedTasks = localStorage.getItem(STORAGE_KEY);
-    const storedSettings = localStorage.getItem(SETTINGS_KEY);
-    const storedInterests = localStorage.getItem(INTERESTS_KEY);
+async function loadData() {
+  const defaultSettings = {
+    defaultView: "today",
+    notifications: "all",
+    theme: "light",
+    location: "Port Harcourt",
+    themeColor: "purple",
+    darkIntensity: 1,
+  };
 
-    tasks = storedTasks ? JSON.parse(storedTasks) : [];
-    interests = storedInterests ? JSON.parse(storedInterests) : [];
+  // Load all data in parallel
+  const [loadedTasks, loadedInterests, loadedSettings] = await Promise.all([
+    db.tasks.toArray(),
+    db.interests.toArray(),
+    db.settings.get("userSettings"),
+  ]);
 
-    const defaultSettings = {
-      defaultView: "today",
-      notifications: "all",
-      theme: "light",
-      location: "Port Harcourt",
-      themeColor: "purple",
-      darkIntensity: 1,
-    };
-    settings = storedSettings
-      ? { ...defaultSettings, ...JSON.parse(storedSettings) }
-      : defaultSettings;
-  }
+  tasks = loadedTasks;
+  interests = loadedInterests;
+  settings = loadedSettings
+    ? { ...defaultSettings, ...loadedSettings }
+    : defaultSettings;
+}
 
-  function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    localStorage.setItem(INTERESTS_KEY, JSON.stringify(interests));
-  }
+
 
   // ---- UI RENDERING & LAYOUT ---- //
   function renderAppLayout() {
@@ -420,53 +427,53 @@ document.addEventListener("DOMContentLoaded", () => {
     if (form) form.classList.add("hidden");
   };
 
-function scheduleReminder(task, formData) {
-  const reminderMinutes = parseInt(formData.get("reminder"));
+  function scheduleReminder(task, formData) {
+    const reminderMinutes = parseInt(formData.get("reminder"));
 
-  if (reminderMinutes && reminderMinutes > 0) {
-    const dueDateTime = new Date(task.dueDateTime).getTime();
-    const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
-    const now = new Date().getTime();
+    if (reminderMinutes && reminderMinutes > 0) {
+      const dueDateTime = new Date(task.dueDateTime).getTime();
+      const reminderTime = dueDateTime - reminderMinutes * 60 * 1000;
+      const now = new Date().getTime();
 
-    if (reminderTime > now) {
-      requestNotificationPermission()
-        .then(() => {
-          setTimeout(() => {
-            // Play sound
-            const audio = new Audio("/notification.mp3");
-            audio.play();
+      if (reminderTime > now) {
+        requestNotificationPermission()
+          .then(() => {
+            setTimeout(() => {
+              // Play sound
+              const audio = new Audio("/notification.mp3");
+              audio.play();
 
-            // Show in-app notification
-            showNotification(
-              "Task Reminder",
-              `Your task "${task.title}" is due soon.`
-            );
+              // Show in-app notification
+              showNotification(
+                "Task Reminder",
+                `Your task "${task.title}" is due soon.`
+              );
 
-            //  THE SYSTEM NOTIFICATION
-            navigator.serviceWorker.ready.then((registration) => {
-              registration.active.postMessage({
-                type: "show-reminder",
-                title: "Kairon Reminder",
-                body: `Your task "${task.title}" is due soon.`,
-                icon: "/favicon/android-chrome-192x192.png",
+              //  THE SYSTEM NOTIFICATION
+              navigator.serviceWorker.ready.then((registration) => {
+                registration.active.postMessage({
+                  type: "show-reminder",
+                  title: "Kairon Reminder",
+                  body: `Your task "${task.title}" is due soon.`,
+                  icon: "/favicon/android-chrome-192x192.png",
+                });
               });
-            });
-          }, reminderTime - now);
+            }, reminderTime - now);
 
-          console.log(`Notification scheduled for task: ${task.title}`);
-        })
-        .catch(() => {
-          console.log("Notification permission denied.");
-        });
+            console.log(`Notification scheduled for task: ${task.title}`);
+          })
+          .catch(() => {
+            console.log("Notification permission denied.");
+          });
+      }
     }
   }
-}
 
-window.handleAddTask = function (event) {
+window.handleAddTask = async function (event) {
   event.preventDefault();
   const formData = new FormData(event.target);
   const task = {
-    id: Date.now(),
+    // Dexie will auto-generate the 'id' field
     title: formData.get("title"),
     category: formData.get("category"),
     priority: formData.get("priority"),
@@ -485,27 +492,31 @@ window.handleAddTask = function (event) {
     createdAt: new Date().toISOString(),
     completedAt: null,
   };
+
+  // Add the new task to the database and get its generated ID.
+  const newId = await db.tasks.add(task);
+  task.id = newId;
   tasks.push(task);
-  saveData();
+
   renderTasks();
   updateFilters();
   closeTaskForm();
   event.target.reset();
   showNotification("Success", `"${task.title}" has been added!`);
 
-  // Schedule the reminder using the new function
   scheduleReminder(task, formData);
 };
 
-window.handleUpdateTask = function (event) {
+window.handleUpdateTask = async function (event) {
   event.preventDefault();
   const form = event.target;
   const formData = new FormData(form);
   const taskId = parseInt(formData.get("taskId"));
   const taskIndex = tasks.findIndex((t) => t.id === taskId);
+  let updatedTaskData;
 
   if (taskIndex > -1) {
-    tasks[taskIndex] = {
+    updatedTaskData = {
       ...tasks[taskIndex],
       title: formData.get("title"),
       category: formData.get("category"),
@@ -522,35 +533,46 @@ window.handleUpdateTask = function (event) {
       notes: formData.get("notes"),
       subtasks: [...currentSubtasks],
     };
+    tasks[taskIndex] = updatedTaskData;
   }
 
-  saveData();
+  // Update the task in the database using put().
+  if (updatedTaskData) {
+    await db.tasks.put(updatedTaskData);
+  }
+
   renderTasks();
   closeEditModal();
   showNotification("Success", `"${tasks[taskIndex].title}" has been updated.`);
 
-  // Schedule the reminder using the new function
   const updatedTask = tasks[taskIndex];
   scheduleReminder(updatedTask, formData);
 };
 
-  window.completeTask = function (taskId) {
-    const task = tasks.find((t) => t.id === taskId);
-    if (task) {
-      task.status = "completed";
-      task.completedAt = new Date().toISOString();
-      saveData();
-      renderTasks();
-    }
-  };
+window.completeTask = async function (taskId) {
+  const task = tasks.find((t) => t.id === taskId);
+  if (task) {
+    task.status = "completed";
+    task.completedAt = new Date().toISOString();
 
-  window.deleteTask = function (taskId) {
-    if (confirm("Are you sure you want to delete this task?")) {
-      tasks = tasks.filter((t) => t.id !== taskId);
-      saveData();
-      renderTasks();
-    }
-  };
+    // Update the task's status in the database.
+    await db.tasks.update(taskId, {
+      status: "completed",
+      completedAt: task.completedAt,
+    });
+    renderTasks();
+  }
+};
+
+window.deleteTask = async function (taskId) {
+  if (confirm("Are you sure you want to delete this task?")) {
+    tasks = tasks.filter((t) => t.id !== taskId);
+
+    // Delete the task from the database.
+    await db.tasks.delete(taskId);
+    renderTasks();
+  }
+};
 
   window.editTask = function (taskId) {
     const task = tasks.find((t) => t.id === taskId);
@@ -575,7 +597,6 @@ window.handleUpdateTask = function (event) {
 
     modal.classList.remove("hidden");
   };
-
 
   window.closeEditModal = () => {
     document.getElementById("editTaskModal").classList.add("hidden");
