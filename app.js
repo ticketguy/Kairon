@@ -432,25 +432,25 @@ function scheduleReminder(task, formData) {
       requestNotificationPermission()
         .then(() => {
           setTimeout(() => {
-            // 1. Play sound
+            // Play sound
             const audio = new Audio("/notification.mp3");
             audio.play();
 
-            // 2. Show in-app notification
+            // Show in-app notification
             showNotification(
               "Task Reminder",
               `Your task "${task.title}" is due soon.`
             );
 
-            // 3. Trigger system notification via the Service Worker
-            if (navigator.serviceWorker.controller) {
-              navigator.serviceWorker.controller.postMessage({
+            //  THE SYSTEM NOTIFICATION
+            navigator.serviceWorker.ready.then((registration) => {
+              registration.active.postMessage({
                 type: "show-reminder",
                 title: "Kairon Reminder",
                 body: `Your task "${task.title}" is due soon.`,
                 icon: "/favicon/android-chrome-192x192.png",
               });
-            }
+            });
           }, reminderTime - now);
 
           console.log(`Notification scheduled for task: ${task.title}`);
