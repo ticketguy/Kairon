@@ -755,57 +755,64 @@ window.deleteInterest = async function (id) {
             </div>`;
   }
 
-  function renderTodayPage() {
-    const hour = new Date().getHours();
-    const date = new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    let greeting;
-    const location = "Port Harcourt";
-    greeting =
-      hour < 12
-        ? `Good Morning from ${location}!`
-        : hour < 18
-        ? `Good Afternoon from ${location}!`
-        : `Good Evening from ${location}!`;
+function renderTodayPage() {
+  const hour = new Date().getHours();
+  const date = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  let greeting;
+  const location = "Port Harcourt";
+  greeting =
+    hour < 12
+      ? `Good Morning from ${location}!`
+      : hour < 18
+      ? `Good Afternoon from ${location}!`
+      : `Good Evening from ${location}!`;
 
-    document.getElementById(
-      "greetingHeader"
-    ).textContent = `${greeting} It's ${date}.`;
+  document.getElementById(
+    "greetingHeader"
+  ).textContent = `${greeting} It's ${date}.`;
 
-    const today = new Date().toDateString();
-    const todayTasks = tasks.filter(
-      (task) =>
-        new Date(task.dueDateTime).toDateString() === today &&
-        task.status !== "completed"
-    );
+  const today = new Date().toDateString();
+  const todayTasks = tasks.filter(
+    (task) =>
+      new Date(task.dueDateTime).toDateString() === today &&
+      task.status !== "completed"
+  );
 
-    const list = document.getElementById("todayTasksList");
-    list.innerHTML =
-      todayTasks.length === 0
-        ? '<p class="text-gray-600">No tasks due today. Enjoy!</p>'
-        : todayTasks
-            .map(
-              (task) => `
-                <div class="flex items-center justify-between py-2 border-b border-gray-400">
-                    <span class="font-medium text-gray-800">${task.title}</span>
-                    <span class="text-sm text-gray-700">${new Date(
-                      task.dueDateTime
-                    ).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}</span>
-                </div>`
-            )
-            .join("");
+  // --- ADDED FOR DEBUGGING ---
+  console.log("All tasks available on this page:", tasks);
+  console.log("Filtered 'Today' tasks (this should not be empty):", todayTasks);
+  // -------------------------
 
-    renderInterests();
-    getDailyQuote();
-    getWeather();
-  }
+  const list = document.getElementById("todayTasksList");
+  list.innerHTML =
+    todayTasks.length === 0
+      ? '<p class="text-gray-600">No tasks due today. Enjoy!</p>'
+      : todayTasks
+          .map(
+            (task) => `
+                        <div class="flex items-center justify-between py-2 border-b border-gray-400">
+                            <span class="font-medium text-gray-800">${
+                              task.title
+                            }</span>
+                            <span class="text-sm text-gray-700">${new Date(
+                              task.dueDateTime
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}</span>
+                        </div>`
+          )
+          .join("");
+
+  renderInterests();
+  getDailyQuote();
+  getWeather();
+}
 
   function renderInterests() {
     const list = document.getElementById("interestsList");
