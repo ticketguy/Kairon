@@ -794,20 +794,19 @@ function renderTodayPage() {
     "greetingHeader"
   ).textContent = `${greeting} It's ${date}.`;
 
-  const now = new Date();
+  const now = new Date(); // Use the current time for all comparisons
   const startOfToday = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate()
   );
 
-  // --- Overdue Tasks Logic (no changes) ---
+  // --- CORRECTED: Overdue Tasks Logic ---
+  // A task is overdue if its due time is before right now.
   const overdueTasks = tasks.filter(
-    (task) =>
-      new Date(task.dueDateTime) < startOfToday && task.status === "active"
+    (task) => new Date(task.dueDateTime) < now && task.status === "active"
   );
   const overdueList = document.getElementById("overdueTasksList");
-  // ... (rendering logic for overdue tasks remains the same)
   overdueList.innerHTML =
     overdueTasks.length === 0
       ? '<p class="text-gray-600">Nothing is overdue. Great job!</p>'
@@ -822,15 +821,16 @@ function renderTodayPage() {
           )
           .join("");
 
-  // --- Tasks Due Today Logic (no changes) ---
+  // --- CORRECTED: Tasks Due Today Logic ---
+  // A task is "due today" if its due date is today AND its due time is still in the future.
   const todayString = startOfToday.toDateString();
   const todayTasks = tasks.filter(
     (task) =>
       new Date(task.dueDateTime).toDateString() === todayString &&
+      new Date(task.dueDateTime) >= now && // This new condition checks the time
       task.status !== "completed"
   );
   const todayList = document.getElementById("todayTasksList");
-  // ... (rendering logic for today's tasks remains the same)
   todayList.innerHTML =
     todayTasks.length === 0
       ? '<p class="text-gray-600">No tasks due today. Enjoy!</p>'
@@ -848,17 +848,14 @@ function renderTodayPage() {
           )
           .join("");
 
-  // --- NEW: Upcoming Tasks Logic ---
+  // --- Upcoming Tasks Logic (no changes) ---
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfToday.getDate() + 1);
-
   const startOfDayAfterTomorrow = new Date(startOfToday);
   startOfDayAfterTomorrow.setDate(startOfToday.getDate() + 2);
-
   const startOfNextWeek = new Date(startOfToday);
   startOfNextWeek.setDate(startOfToday.getDate() + 8);
 
-  // Filter tasks for each upcoming period
   const tomorrowTasks = tasks.filter(
     (t) =>
       new Date(t.dueDateTime) >= startOfTomorrow &&
@@ -875,11 +872,9 @@ function renderTodayPage() {
     (t) => new Date(t.dueDateTime) >= startOfNextWeek && t.status === "active"
   );
 
-  // Helper to format the display date
   const renderUpcomingTask = (task) =>
     `<div class="py-1"><p class="text-sm text-gray-700">${task.title}</p></div>`;
 
-  // Render each section
   document.getElementById("tomorrowTasksList").innerHTML =
     tomorrowTasks.length === 0
       ? '<p class="text-xs text-gray-500">Nothing for tomorrow.</p>'
