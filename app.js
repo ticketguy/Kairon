@@ -728,34 +728,43 @@ window.deleteInterest = async function (id) {
   }
 
   // -- TODAY PAGE -- //
-  function getTodayPageHTML() {
-    return `
-            <h2 id="greetingHeader" class="text-3xl font-bold mb-6"></h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card p-6" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
-                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Tasks Due Today</h3>
-                    <div id="todayTasksList"></div>
-                </div>
-                <div class="card p-6" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Things I'm Interested In</h3>
-                    <div id="interestForm" class="hidden mb-4 bg-white bg-opacity-60 p-4 rounded-lg">
-                        <input type="text" id="interestTitleInput" placeholder="Title..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2">
-                        <textarea id="interestDescInput" placeholder="Description..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2" rows="2"></textarea>
-                        <div class="flex gap-2">
-                            <button onclick="addInterest()" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Save</button>
-                            <button onclick="cancelInterest()" class="flex-1 px-3 py-2 bg-gray-400 text-white rounded-lg text-sm hover:bg-gray-500">Cancel</button>
-                        </div>
+function getTodayPageHTML() {
+  return `
+        <h2 id="greetingHeader" class="text-3xl font-bold mb-6"></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="card p-6" style="background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">Overdue Tasks</h3>
+                <div id="overdueTasksList"></div>
+            </div>
+
+            <div class="card p-6" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">Tasks Due Today</h3>
+                <div id="todayTasksList"></div>
+            </div>
+
+            <div class="card p-6" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">Things I'm Interested In</h3>
+                <div id="interestForm" class="hidden mb-4 bg-white bg-opacity-60 p-4 rounded-lg">
+                    <input type="text" id="interestTitleInput" placeholder="Title..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2">
+                    <textarea id="interestDescInput" placeholder="Description..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2" rows="2"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="addInterest()" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Save</button>
+                        <button onclick="cancelInterest()" class="flex-1 px-3 py-2 bg-gray-400 text-white rounded-lg text-sm hover:bg-gray-500">Cancel</button>
                     </div>
-                    <div id="interestsList"></div>
                 </div>
-                <div class="card p-6" style="background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);">
-                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Daily Inspiration</h3>
-                    <p id="quoteWidget" class="text-sm italic text-gray-700"></p>
-                </div>
-            </div>`;
-  }
+                <div id="interestsList"></div>
+            </div>
+
+            <div class="md:col-span-3 card p-6" style="background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);">
+                <h3 class="text-lg font-semibold mb-2 text-gray-800">Daily Inspiration</h3>
+                <p id="quoteWidget" class="text-sm italic text-gray-700"></p>
+            </div>
+        </div>`;
+}
 
 function renderTodayPage() {
+  // --- Greeting and Date Logic (no changes) ---
   const hour = new Date().getHours();
   const date = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -764,51 +773,74 @@ function renderTodayPage() {
     day: "numeric",
   });
   let greeting;
-  const location = "Port Harcourt";
+  const location = "Switzerland"; // Updated location
   greeting =
     hour < 12
       ? `Good Morning from ${location}!`
       : hour < 18
       ? `Good Afternoon from ${location}!`
       : `Good Evening from ${location}!`;
-
   document.getElementById(
     "greetingHeader"
   ).textContent = `${greeting} It's ${date}.`;
 
-  const today = new Date().toDateString();
+  // --- NEW: Overdue Tasks Logic ---
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0); // Set to the beginning of today for accurate comparison
+
+  const overdueTasks = tasks.filter(
+    (task) =>
+      new Date(task.dueDateTime) < startOfToday && task.status === "active"
+  );
+
+  const overdueList = document.getElementById("overdueTasksList");
+  overdueList.innerHTML =
+    overdueTasks.length === 0
+      ? '<p class="text-gray-600">Nothing is overdue. Great job!</p>'
+      : overdueTasks
+          .map((task) => {
+            const daysOverdue = Math.floor(
+              (startOfToday - new Date(task.dueDateTime)) /
+                (1000 * 60 * 60 * 24)
+            );
+            return `
+                <div class="flex items-center justify-between py-2 border-b border-red-300">
+                    <span class="font-medium text-gray-800">${task.title}</span>
+                    <span class="text-sm text-red-700 font-semibold">${daysOverdue} ${
+              daysOverdue > 1 ? "days" : "day"
+            } overdue</span>
+                </div>`;
+          })
+          .join("");
+
+  // --- Tasks Due Today Logic (no changes) ---
+  const todayString = startOfToday.toDateString();
   const todayTasks = tasks.filter(
     (task) =>
-      new Date(task.dueDateTime).toDateString() === today &&
+      new Date(task.dueDateTime).toDateString() === todayString &&
       task.status !== "completed"
   );
 
-  // --- ADDED FOR DEBUGGING ---
-  console.log("All tasks available on this page:", tasks);
-  console.log("Filtered 'Today' tasks (this should not be empty):", todayTasks);
-  // -------------------------
-
-  const list = document.getElementById("todayTasksList");
-  list.innerHTML =
+  const todayList = document.getElementById("todayTasksList");
+  todayList.innerHTML =
     todayTasks.length === 0
       ? '<p class="text-gray-600">No tasks due today. Enjoy!</p>'
       : todayTasks
           .map(
             (task) => `
-                        <div class="flex items-center justify-between py-2 border-b border-gray-400">
-                            <span class="font-medium text-gray-800">${
-                              task.title
-                            }</span>
-                            <span class="text-sm text-gray-700">${new Date(
-                              task.dueDateTime
-                            ).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}</span>
-                        </div>`
+            <div class="flex items-center justify-between py-2 border-b border-blue-300">
+                <span class="font-medium text-gray-800">${task.title}</span>
+                <span class="text-sm text-gray-700">${new Date(
+                  task.dueDateTime
+                ).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}</span>
+            </div>`
           )
           .join("");
 
+  // --- Other Widget Rendering (no changes) ---
   renderInterests();
   getDailyQuote();
   getWeather();
