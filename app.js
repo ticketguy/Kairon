@@ -847,22 +847,21 @@ function formatTimeAgo(dateString) {
   const past = new Date(dateString);
   const seconds = Math.floor((now - past) / 1000);
 
-  let interval = seconds / 31536000; // years
-  if (interval > 1) return Math.floor(interval) + " years overdue";
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
 
-  interval = seconds / 2592000; // months
-  if (interval > 1) return Math.floor(interval) + " months overdue";
-
-  interval = seconds / 86400; // days
-  if (interval > 1) return Math.floor(interval) + " days overdue";
-  if (interval > 0) return "1 day overdue"; // Handle singular day
-
-  interval = seconds / 3600; // hours
-  if (interval > 1) return Math.floor(interval) + " hours overdue";
-  if (interval > 0) return "1 hour overdue";
-
-  interval = seconds / 60; // minutes
-  if (interval > 1) return Math.floor(interval) + " mins overdue";
+  if (years > 0)
+    return years + (years > 1 ? " years overdue" : " year overdue");
+  if (months > 0)
+    return months + (months > 1 ? " months overdue" : " month overdue");
+  if (days > 0) return days + (days > 1 ? " days overdue" : " day overdue");
+  if (hours > 0)
+    return hours + (hours > 1 ? " hours overdue" : " hour overdue");
+  if (minutes > 0)
+    return minutes + (minutes > 1 ? " mins overdue" : " min overdue");
 
   return "Just now overdue";
 }
