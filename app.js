@@ -743,19 +743,29 @@ function getTodayPageHTML() {
                 <div id="todayTasksList"></div>
             </div>
 
-            <div class="card p-6" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-                <h3 class="text-xl font-semibold mb-4 text-gray-800">Things I'm Interested In</h3>
-                <div id="interestForm" class="hidden mb-4 bg-white bg-opacity-60 p-4 rounded-lg">
-                    <input type="text" id="interestTitleInput" placeholder="Title..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2">
-                    <textarea id="interestDescInput" placeholder="Description..." class="w-full px-3 py-2 border rounded-lg text-sm mb-2" rows="2"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="addInterest()" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Save</button>
-                        <button onclick="cancelInterest()" class="flex-1 px-3 py-2 bg-gray-400 text-white rounded-lg text-sm hover:bg-gray-500">Cancel</button>
+            <div class="card p-6" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">Upcoming</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-bold text-sm text-gray-700 mb-1">Tomorrow</h4>
+                        <div id="tomorrowTasksList"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-gray-700 mb-1">This Week</h4>
+                        <div id="thisWeekTasksList"></div>
+                    </div>
+                     <div>
+                        <h4 class="font-bold text-sm text-gray-700 mb-1">Later</h4>
+                        <div id="laterTasksList"></div>
                     </div>
                 </div>
-                <div id="interestsList"></div>
             </div>
 
+            <div class="md:col-span-3 card p-6" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                 <h3 class="text-xl font-semibold mb-4 text-gray-800">Things I'm Interested In</h3>
+                 <div id="interestsList"></div>
+            </div>
+            
             <div class="md:col-span-3 card p-6" style="background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);">
                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Daily Inspiration</h3>
                 <p id="quoteWidget" class="text-sm italic text-gray-700"></p>
@@ -784,29 +794,32 @@ function renderTodayPage() {
     "greetingHeader"
   ).textContent = `${greeting} It's ${date}.`;
 
-  // --- Overdue Tasks Logic ---
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const overdueTasks = tasks.filter(
-    (task) =>
-      new Date(task.dueDateTime) < new Date() && task.status === "active" // Check against current time now
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
   );
 
+  // --- Overdue Tasks Logic (no changes) ---
+  const overdueTasks = tasks.filter(
+    (task) =>
+      new Date(task.dueDateTime) < startOfToday && task.status === "active"
+  );
   const overdueList = document.getElementById("overdueTasksList");
+  // ... (rendering logic for overdue tasks remains the same)
   overdueList.innerHTML =
     overdueTasks.length === 0
       ? '<p class="text-gray-600">Nothing is overdue. Great job!</p>'
       : overdueTasks
-          .map((task) => {
-            // UPDATED: Use the new helper function
-            const timeOverdue = formatTimeAgo(task.dueDateTime);
-            return `
-                <div class="flex items-center justify-between py-2 border-b border-red-300">
-                    <span class="font-medium text-gray-800">${task.title}</span>
-                    <span class="text-sm text-red-700 font-semibold">${timeOverdue}</span>
-                </div>`;
-          })
+          .map(
+            (task) =>
+              `<div class="flex items-center justify-between py-2 border-b border-red-300"><span class="font-medium text-gray-800">${
+                task.title
+              }</span><span class="text-sm text-red-700 font-semibold">${formatTimeAgo(
+                task.dueDateTime
+              )}</span></div>`
+          )
           .join("");
 
   // --- Tasks Due Today Logic (no changes) ---
@@ -816,25 +829,69 @@ function renderTodayPage() {
       new Date(task.dueDateTime).toDateString() === todayString &&
       task.status !== "completed"
   );
-
   const todayList = document.getElementById("todayTasksList");
+  // ... (rendering logic for today's tasks remains the same)
   todayList.innerHTML =
     todayTasks.length === 0
       ? '<p class="text-gray-600">No tasks due today. Enjoy!</p>'
       : todayTasks
           .map(
-            (task) => `
-            <div class="flex items-center justify-between py-2 border-b border-blue-300">
-                <span class="font-medium text-gray-800">${task.title}</span>
-                <span class="text-sm text-gray-700">${new Date(
-                  task.dueDateTime
-                ).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}</span>
-            </div>`
+            (task) =>
+              `<div class="flex items-center justify-between py-2 border-b border-blue-300"><span class="font-medium text-gray-800">${
+                task.title
+              }</span><span class="text-sm text-gray-700">${new Date(
+                task.dueDateTime
+              ).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}</span></div>`
           )
           .join("");
+
+  // --- NEW: Upcoming Tasks Logic ---
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfToday.getDate() + 1);
+
+  const startOfDayAfterTomorrow = new Date(startOfToday);
+  startOfDayAfterTomorrow.setDate(startOfToday.getDate() + 2);
+
+  const startOfNextWeek = new Date(startOfToday);
+  startOfNextWeek.setDate(startOfToday.getDate() + 8);
+
+  // Filter tasks for each upcoming period
+  const tomorrowTasks = tasks.filter(
+    (t) =>
+      new Date(t.dueDateTime) >= startOfTomorrow &&
+      new Date(t.dueDateTime) < startOfDayAfterTomorrow &&
+      t.status === "active"
+  );
+  const thisWeekTasks = tasks.filter(
+    (t) =>
+      new Date(t.dueDateTime) >= startOfDayAfterTomorrow &&
+      new Date(t.dueDateTime) < startOfNextWeek &&
+      t.status === "active"
+  );
+  const laterTasks = tasks.filter(
+    (t) => new Date(t.dueDateTime) >= startOfNextWeek && t.status === "active"
+  );
+
+  // Helper to format the display date
+  const renderUpcomingTask = (task) =>
+    `<div class="py-1"><p class="text-sm text-gray-700">${task.title}</p></div>`;
+
+  // Render each section
+  document.getElementById("tomorrowTasksList").innerHTML =
+    tomorrowTasks.length === 0
+      ? '<p class="text-xs text-gray-500">Nothing for tomorrow.</p>'
+      : tomorrowTasks.map(renderUpcomingTask).join("");
+  document.getElementById("thisWeekTasksList").innerHTML =
+    thisWeekTasks.length === 0
+      ? '<p class="text-xs text-gray-500">Nothing else this week.</p>'
+      : thisWeekTasks.map(renderUpcomingTask).join("");
+  document.getElementById("laterTasksList").innerHTML =
+    laterTasks.length === 0
+      ? '<p class="text-xs text-gray-500">Nothing scheduled for later.</p>'
+      : laterTasks.map(renderUpcomingTask).join("");
 
   // --- Other Widget Rendering (no changes) ---
   renderInterests();
