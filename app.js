@@ -773,7 +773,7 @@ function renderTodayPage() {
     day: "numeric",
   });
   let greeting;
-  const location = "Switzerland"; // Updated location
+  const location = "Switzerland";
   greeting =
     hour < 12
       ? `Good Morning from ${location}!`
@@ -784,13 +784,13 @@ function renderTodayPage() {
     "greetingHeader"
   ).textContent = `${greeting} It's ${date}.`;
 
-  // --- NEW: Overdue Tasks Logic ---
+  // --- Overdue Tasks Logic ---
   const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0); // Set to the beginning of today for accurate comparison
+  startOfToday.setHours(0, 0, 0, 0);
 
   const overdueTasks = tasks.filter(
     (task) =>
-      new Date(task.dueDateTime) < startOfToday && task.status === "active"
+      new Date(task.dueDateTime) < new Date() && task.status === "active" // Check against current time now
   );
 
   const overdueList = document.getElementById("overdueTasksList");
@@ -799,16 +799,12 @@ function renderTodayPage() {
       ? '<p class="text-gray-600">Nothing is overdue. Great job!</p>'
       : overdueTasks
           .map((task) => {
-            const daysOverdue = Math.floor(
-              (startOfToday - new Date(task.dueDateTime)) /
-                (1000 * 60 * 60 * 24)
-            );
+            // UPDATED: Use the new helper function
+            const timeOverdue = formatTimeAgo(task.dueDateTime);
             return `
                 <div class="flex items-center justify-between py-2 border-b border-red-300">
                     <span class="font-medium text-gray-800">${task.title}</span>
-                    <span class="text-sm text-red-700 font-semibold">${daysOverdue} ${
-              daysOverdue > 1 ? "days" : "day"
-            } overdue</span>
+                    <span class="text-sm text-red-700 font-semibold">${timeOverdue}</span>
                 </div>`;
           })
           .join("");
@@ -844,6 +840,31 @@ function renderTodayPage() {
   renderInterests();
   getDailyQuote();
   getWeather();
+}
+
+function formatTimeAgo(dateString) {
+  const now = new Date();
+  const past = new Date(dateString);
+  const seconds = Math.floor((now - past) / 1000);
+
+  let interval = seconds / 31536000; // years
+  if (interval > 1) return Math.floor(interval) + " years overdue";
+
+  interval = seconds / 2592000; // months
+  if (interval > 1) return Math.floor(interval) + " months overdue";
+
+  interval = seconds / 86400; // days
+  if (interval > 1) return Math.floor(interval) + " days overdue";
+  if (interval > 0) return "1 day overdue"; // Handle singular day
+
+  interval = seconds / 3600; // hours
+  if (interval > 1) return Math.floor(interval) + " hours overdue";
+  if (interval > 0) return "1 hour overdue";
+
+  interval = seconds / 60; // minutes
+  if (interval > 1) return Math.floor(interval) + " mins overdue";
+
+  return "Just now overdue";
 }
 
   function renderInterests() {
